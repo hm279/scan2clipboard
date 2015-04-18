@@ -1,2 +1,2 @@
 # scan2clipboard
-Scan bar code and set to clipboard with ZBar lib
+Scan bar code and copy to clipboard with ZBar lib
