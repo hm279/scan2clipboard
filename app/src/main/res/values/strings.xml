@@ -3,6 +3,6 @@
 
     <string name="hello_world">Hello world!</string>
     <string name="action_settings">Settings</string>
-    <string name="check_notification">check to set fast action to scan in notification</string>
-    <string name="check_reverse">Barcode was white background? Check it</string>
+    <string name="check_notification">set shortcut to scan in notification</string>
+    <string name="check_reverse">reverse image color to decode</string>
 </resources>

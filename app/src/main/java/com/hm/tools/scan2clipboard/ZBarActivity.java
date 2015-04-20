@@ -5,12 +5,13 @@ import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.ClipData;
-import android.content.ClipDescription;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
+import android.graphics.drawable.Drawable;
 import android.hardware.Camera;
 import android.os.Bundle;
 import android.os.Handler;
@@ -20,8 +21,12 @@ import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
+import android.view.animation.Animation;
+import android.view.animation.AnimationUtils;
+import android.view.animation.TranslateAnimation;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
+import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -41,6 +46,8 @@ import java.util.List;
  */
 public class ZBarActivity extends Activity{
     private static final String INTENT = "com.hm.tools.scan2clipboard";
+    private static final String REVERSE = "reverse";
+    private static final String SHORTCUT = "shortcut";
     private static final String TAG = "ZBar";
     private Camera mCamera;
     private ImageScanner scanner;
@@ -52,9 +59,14 @@ public class ZBarActivity extends Activity{
     boolean isSurfaceViewDestroyed = true;
     boolean autoFocus;
     boolean reverse;
+    boolean shortcut;
     boolean newIntent = false;
+    boolean isSetting = false;
 
     private TextView textView;
+    private ImageButton setting;
+    private CheckBox checkBox_reverse;
+    private CheckBox checkBox_shortcut;
 
     static {
         System.loadLibrary("iconv");
@@ -76,15 +88,17 @@ public class ZBarActivity extends Activity{
             scanner.setConfig(0, Config.X_DENSITY, 3);
             scanner.setConfig(0, Config.Y_DENSITY, 3);
 
-            CheckBox checkBox = (CheckBox) findViewById(R.id.check_reverse);
-            checkBox.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            mPreview.setOnTouchListener(touchListener);
+
+            checkBox_reverse = (CheckBox) findViewById(R.id.check_reverse);
+            checkBox_reverse.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
                 @Override
                 public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                     reverse = isChecked;
                 }
             });
-            CheckBox checkBox1 = (CheckBox) findViewById(R.id.check_notification);
-            checkBox1.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            checkBox_shortcut = (CheckBox) findViewById(R.id.check_notification);
+            checkBox_shortcut.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
                 @Override
                 public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                     if (isChecked) {
@@ -95,16 +109,16 @@ public class ZBarActivity extends Activity{
                 }
             });
             textView = (TextView) findViewById(R.id.textView);
+            setting = (ImageButton) findViewById(R.id.setting);
+            setting.setOnClickListener(settingListener);
+            getSetting();
+            if (reverse) {
+                checkBox_reverse.setChecked(true);
+            }
+            if (shortcut) {
+                checkBox_shortcut.setChecked(true);
+            }
 
-            mPreview.setOnTouchListener(new View.OnTouchListener() {
-                @Override
-                public boolean onTouch(View v, MotionEvent event) {
-                    mCamera.setPreviewCallback(previewCallback);
-                    mCamera.startPreview();
-                    textView.setVisibility(View.INVISIBLE);
-                    return true;
-                }
-            });
             Intent intent = getIntent();
             if (intent.getAction().equals(INTENT)) {
                 newIntent = true;
@@ -114,22 +128,28 @@ public class ZBarActivity extends Activity{
             finish();
         }
 
-        StrictMode.setVmPolicy(new StrictMode.VmPolicy.Builder()
-                .detectAll()
-                .penaltyLog()
-                .penaltyDeath()
-                .build());
-        StrictMode.setThreadPolicy(new StrictMode.ThreadPolicy.Builder()
-                .penaltyDeath()
-                .penaltyLog()
-                .build());
-//        Log.d(TAG, "onCreate");
+        if (BuildConfig.DEBUG) {
+            StrictMode.setVmPolicy(new StrictMode.VmPolicy.Builder()
+                    .detectAll()
+                    .penaltyLog()
+                    .penaltyDeath()
+                    .build());
+            StrictMode.setThreadPolicy(new StrictMode.ThreadPolicy.Builder()
+                    .penaltyDeath()
+                    .penaltyLog()
+                    .build());
+            Log.d(TAG, "onCreate");
+        }
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
         releaseCameraAndPreview();
+        if (shortcut) {
+            setNotification();
+        }
+        saveSetting(reverse, shortcut);
 //        Log.d(TAG, "onDestroy");
     }
 
@@ -312,7 +332,9 @@ public class ZBarActivity extends Activity{
             finish();
         } else {
             textView.setText(resultList.get(0));
+            Animation in = AnimationUtils.loadAnimation(this, R.anim.abc_slide_in_top);
             textView.setVisibility(View.VISIBLE);
+            textView.startAnimation(in);
         }
     }
 
@@ -321,6 +343,81 @@ public class ZBarActivity extends Activity{
 //            data[i] = (byte) (~data[i] & 0xff);
             data[i] = (byte) (255 - data[i]);
         }
+    }
+
+    private void saveSetting(boolean reverse, boolean shortcut) {
+        SharedPreferences sharedPreferences = getPreferences(Context.MODE_PRIVATE);
+        if (sharedPreferences.getBoolean(REVERSE, false) == reverse &&
+                sharedPreferences.getBoolean(SHORTCUT, false) == shortcut) {
+            return;
+        }
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.putBoolean(REVERSE, reverse);
+        editor.putBoolean(SHORTCUT, shortcut);
+        editor.apply();
+    }
+
+    private void getSetting() {
+        SharedPreferences sharedPreferences = getPreferences(Context.MODE_PRIVATE);
+        reverse = sharedPreferences.getBoolean(REVERSE, false);
+        shortcut = sharedPreferences.getBoolean(SHORTCUT, false);
+    }
+
+    View.OnTouchListener touchListener = new View.OnTouchListener() {
+        @Override
+        public boolean onTouch(View v, MotionEvent event) {
+            if (!previewing) {
+                mCamera.setPreviewCallback(previewCallback);
+                mCamera.startPreview();
+                textView.setVisibility(View.INVISIBLE);
+            }
+            if (isSetting) {
+                //dismiss checkbox without save them;
+                dismissCheckBox();
+            }
+            return true;
+        }
+    };
+
+    View.OnClickListener settingListener = new View.OnClickListener() {
+        @Override
+        public void onClick(View v) {
+            if (isSetting) {
+                // save setting;
+                dismissCheckBox();
+                reverse = checkBox_reverse.isChecked();
+                shortcut = checkBox_shortcut.isChecked();
+            } else {
+                Drawable drawable = getResources()
+                        .getDrawable(R.mipmap.ic_done_white_48dp);
+                setting.setImageDrawable(drawable);
+                checkBox_reverse.setVisibility(View.VISIBLE);
+                checkBox_shortcut.setVisibility(View.VISIBLE);
+                Animation in = AnimationUtils.loadAnimation(getApplicationContext(),
+                        R.anim.abc_grow_fade_in_from_bottom);
+                setting.startAnimation(in);
+                checkBox_reverse.startAnimation(in);
+                checkBox_shortcut.startAnimation(in);
+                isSetting = true;
+            }
+        }
+    };
+
+    private void dismissCheckBox() {
+        Drawable drawable = getResources()
+                .getDrawable(R.mipmap.ic_settings_white_48dp);
+        setting.setImageDrawable(drawable);
+        Animation in = AnimationUtils.loadAnimation(getApplicationContext(),
+                R.anim.abc_grow_fade_in_from_bottom);
+        setting.startAnimation(in);
+
+        checkBox_reverse.setVisibility(View.INVISIBLE);
+        checkBox_shortcut.setVisibility(View.INVISIBLE);
+        Animation out = AnimationUtils.loadAnimation(getApplicationContext(),
+                R.anim.abc_shrink_fade_out_from_bottom);
+        checkBox_reverse.startAnimation(out);
+        checkBox_shortcut.startAnimation(out);
+        isSetting = false;
     }
 
 }
