@@ -1,6 +1,9 @@
 package com.hm.tools.scan2clipboard;
 
 import android.app.Activity;
+import android.app.Fragment;
+import android.app.FragmentManager;
+import android.app.FragmentTransaction;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -11,6 +14,8 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.drawable.Drawable;
 import android.hardware.Camera;
 import android.os.Bundle;
@@ -35,6 +40,7 @@ import net.sourceforge.zbar.ImageScanner;
 import net.sourceforge.zbar.Symbol;
 import net.sourceforge.zbar.SymbolSet;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -43,7 +49,7 @@ import java.util.List;
 /**
  * Created by hm on 15-3-16.
  */
-public class ZBarActivity extends Activity{
+public class ZBarActivity extends Activity implements FileListFragment.FileSelectedListener {
     private static final String INTENT = "com.hm.tools.scan2clipboard";
     private static final String REVERSE = "reverse";
     private static final String SHORTCUT = "shortcut";
@@ -51,9 +57,8 @@ public class ZBarActivity extends Activity{
     private Camera mCamera;
     private ImageScanner scanner;
 
-    private SurfaceView mPreview;
+//    private SurfaceView mPreview;
     private Handler autoFocusHandler;
-    boolean scanned = false;
     boolean previewing = true;
     boolean isSurfaceViewDestroyed = true;
     boolean autoFocus;
@@ -64,8 +69,11 @@ public class ZBarActivity extends Activity{
 
     private TextView textView;
     private ImageButton setting;
+//    private ImageButton add;
     private CheckBox checkBox_reverse;
     private CheckBox checkBox_shortcut;
+
+    FileListFragment fileListFragment = null;
 
     static {
         System.loadLibrary("iconv");
@@ -80,7 +88,7 @@ public class ZBarActivity extends Activity{
             setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
 
             autoFocus = checkCameraAutoFocus();
-            mPreview = (SurfaceView) findViewById(R.id.camera_preview);
+            SurfaceView mPreview = (SurfaceView) findViewById(R.id.camera_preview);
             mPreview.getHolder().addCallback(holderCallback);
             autoFocusHandler = new Handler();
             scanner = new ImageScanner();
@@ -110,6 +118,9 @@ public class ZBarActivity extends Activity{
             textView = (TextView) findViewById(R.id.textView);
             setting = (ImageButton) findViewById(R.id.setting);
             setting.setOnClickListener(settingListener);
+            ImageButton add = (ImageButton) findViewById(R.id.add);
+            add.setOnClickListener(addListener);
+
             getSetting();
             if (reverse) {
                 checkBox_reverse.setChecked(true);
@@ -170,6 +181,17 @@ public class ZBarActivity extends Activity{
 //        Log.d(TAG, "onStart");
     }
 
+    @Override
+    public void onBackPressed() {
+        if (fileListFragment != null) {
+            if (!fileListFragment.onBackPressed()) {
+                dismissFileListFragment();
+            }
+            return;
+        }
+        super.onBackPressed();
+    }
+
     public void setNotification() {
         Intent intent = new Intent(this, ZBarActivity.class);
         intent.setAction(INTENT);
@@ -223,31 +245,15 @@ public class ZBarActivity extends Activity{
     Camera.PreviewCallback previewCallback = new Camera.PreviewCallback() {
         @Override
         public void onPreviewFrame(byte[] data, Camera camera) {
-//            long s,e;
-//            s = System.currentTimeMillis();
             Camera.Parameters parameters = camera.getParameters();
             Camera.Size size = parameters.getPreviewSize();
-            Image image = new Image(size.width, size.height, "Y800");
-            image.setData(data);
-            if (reverse) {
-                reverseImageData(data);
-            }
-            int result = scanner.scanImage(image);
-            if (result != 0) {
+            ArrayList<String> result = decode(size.width, size.height, data);
+            if (result != null) {
                 previewing = false;
                 mCamera.setPreviewCallback(null);
                 mCamera.stopPreview();
-                SymbolSet symbolSet = scanner.getResults();
-                ArrayList<String> list = new ArrayList<>();
-                for (Symbol symbol : symbolSet) {
-                    list.add(symbol.getData());
-                    scanned = true;
 
-//                    e = System.currentTimeMillis();
-//                    Log.v(TAG, "decode time is " + (e - s));
-                    Log.v(TAG, symbol.getData());
-                }
-                setResult(list);
+                setResult(result);
             }
         }
     };
@@ -323,6 +329,29 @@ public class ZBarActivity extends Activity{
         return false;
     }
 
+    private ArrayList<String> decode(int w, int h, byte[] data) {
+//        long s,e;
+//        s = System.currentTimeMillis();
+        if (reverse) {
+            reverseImageData(data);
+        }
+        Image image = new Image(w, h, "Y800");
+        image.setData(data);
+        int result = scanner.scanImage(image);
+        if (result != 0) {
+            SymbolSet symbolSet = scanner.getResults();
+            ArrayList<String> list = new ArrayList<>();
+            for (Symbol symbol : symbolSet) {
+                list.add(symbol.getData());
+//                Log.v(TAG, symbol.getData());
+            }
+//            e = System.currentTimeMillis();
+//            Log.v(TAG, "decode time is " + (e - s));
+            return list;
+        }
+        return null;
+    }
+
     private void setResult(ArrayList<String> resultList) {
         ClipboardManager manager = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
         ClipData data = ClipData.newPlainText(getString(R.string.app_name), resultList.get(0));
@@ -366,6 +395,7 @@ public class ZBarActivity extends Activity{
         @Override
         public boolean onTouch(View v, MotionEvent event) {
             if (!previewing) {
+                previewing = true;
                 mCamera.setPreviewCallback(previewCallback);
                 mCamera.startPreview();
                 textView.setVisibility(View.INVISIBLE);
@@ -417,6 +447,59 @@ public class ZBarActivity extends Activity{
         checkBox_reverse.startAnimation(out);
         checkBox_shortcut.startAnimation(out);
         isSetting = false;
+    }
+
+    @Override
+    public void onFileSelectedListener(File file) {
+//        Log.d("onFileSelectedListener", file.getAbsolutePath());
+        dismissFileListFragment();
+        //image file convert to byte[] data
+        Bitmap bitmap = BitmapFactory.decodeFile(file.getAbsolutePath());
+        if (null != bitmap) {
+            int w = bitmap.getWidth();
+            int h = bitmap.getHeight();
+            int[] pixels = new int[w * h];
+            bitmap.getPixels(pixels, 0, w, 0, 0, w, h);
+            Image data = new Image(w, h, "RGB4");
+            data.setData(pixels);
+            int result = scanner.scanImage(data.convert("Y800"));
+            if (result != 0) {
+                SymbolSet symbolSet = scanner.getResults();
+                ArrayList<String> list = new ArrayList<>();
+                for (Symbol symbol : symbolSet) {
+                    list.add(symbol.getData());
+                }
+                setResult(list);
+                return;
+            }
+        }
+        Toast.makeText(this, "failed to decode", Toast.LENGTH_LONG).show();
+    }
+
+    View.OnClickListener addListener = new View.OnClickListener() {
+        @Override
+        public void onClick(View v) {
+            if (previewing) {
+                mCamera.stopPreview();
+                previewing = false;
+            }
+            fileListFragment = new FileListFragment();
+            getFragmentManager().beginTransaction()
+                    .add(R.id.camera_frame, fileListFragment, "file")
+                    .setTransition(FragmentTransaction.TRANSIT_FRAGMENT_OPEN)
+                    .commit();
+        }
+    };
+
+    private void dismissFileListFragment() {
+        if (fileListFragment != null) {
+            FragmentManager manager = getFragmentManager();
+            manager.beginTransaction()
+                    .remove(fileListFragment)
+                    .setTransition(FragmentTransaction.TRANSIT_FRAGMENT_CLOSE)
+                    .commit();
+            fileListFragment = null;
+        }
     }
 
 }
