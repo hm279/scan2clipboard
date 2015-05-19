@@ -51,18 +51,19 @@ import java.util.List;
  */
 public class ZBarActivity extends Activity implements FileListFragment.FileSelectedListener {
     private static final String INTENT = "com.hm.tools.scan2clipboard";
-    private static final String REVERSE = "reverse";
     private static final String SHORTCUT = "shortcut";
     private static final String TAG = "ZBar";
     private Camera mCamera;
     private ImageScanner scanner;
+
+    /** Three times normal decode, once reverse decode  */
+    private int interval = 0;
 
 //    private SurfaceView mPreview;
     private Handler autoFocusHandler;
     boolean previewing = true;
     boolean isSurfaceViewDestroyed = true;
     boolean autoFocus;
-    boolean reverse;
     boolean shortcut;
     boolean newIntent = false;
     boolean isSetting = false;
@@ -70,7 +71,6 @@ public class ZBarActivity extends Activity implements FileListFragment.FileSelec
     private TextView textView;
     private ImageButton setting;
 //    private ImageButton add;
-    private CheckBox checkBox_reverse;
     private CheckBox checkBox_shortcut;
 
     FileListFragment fileListFragment = null;
@@ -97,13 +97,6 @@ public class ZBarActivity extends Activity implements FileListFragment.FileSelec
 
             mPreview.setOnTouchListener(touchListener);
 
-            checkBox_reverse = (CheckBox) findViewById(R.id.check_reverse);
-            checkBox_reverse.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-                @Override
-                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                    reverse = isChecked;
-                }
-            });
             checkBox_shortcut = (CheckBox) findViewById(R.id.check_notification);
             checkBox_shortcut.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
                 @Override
@@ -122,9 +115,6 @@ public class ZBarActivity extends Activity implements FileListFragment.FileSelec
             add.setOnClickListener(addListener);
 
             getSetting();
-            if (reverse) {
-                checkBox_reverse.setChecked(true);
-            }
             if (shortcut) {
                 checkBox_shortcut.setChecked(true);
             }
@@ -159,7 +149,7 @@ public class ZBarActivity extends Activity implements FileListFragment.FileSelec
         if (shortcut) {
             setNotification();
         }
-        saveSetting(reverse, shortcut);
+        saveSetting(shortcut);
 //        Log.d(TAG, "onDestroy");
     }
 
@@ -332,9 +322,14 @@ public class ZBarActivity extends Activity implements FileListFragment.FileSelec
     private ArrayList<String> decode(int w, int h, byte[] data) {
 //        long s,e;
 //        s = System.currentTimeMillis();
-        if (reverse) {
+        interval++;
+        if (interval > 3) {
             reverseImageData(data);
+            interval = 0;
         }
+//        if (reverse) {
+//            reverseImageData(data);
+//        }
         Image image = new Image(w, h, "Y800");
         image.setData(data);
         int result = scanner.scanImage(image);
@@ -373,21 +368,18 @@ public class ZBarActivity extends Activity implements FileListFragment.FileSelec
         }
     }
 
-    private void saveSetting(boolean reverse, boolean shortcut) {
+    private void saveSetting(boolean shortcut) {
         SharedPreferences sharedPreferences = getPreferences(Context.MODE_PRIVATE);
-        if (sharedPreferences.getBoolean(REVERSE, false) == reverse &&
-                sharedPreferences.getBoolean(SHORTCUT, false) == shortcut) {
+        if (sharedPreferences.getBoolean(SHORTCUT, false) == shortcut) {
             return;
         }
         SharedPreferences.Editor editor = sharedPreferences.edit();
-        editor.putBoolean(REVERSE, reverse);
         editor.putBoolean(SHORTCUT, shortcut);
         editor.apply();
     }
 
     private void getSetting() {
         SharedPreferences sharedPreferences = getPreferences(Context.MODE_PRIVATE);
-        reverse = sharedPreferences.getBoolean(REVERSE, false);
         shortcut = sharedPreferences.getBoolean(SHORTCUT, false);
     }
 
@@ -414,18 +406,15 @@ public class ZBarActivity extends Activity implements FileListFragment.FileSelec
             if (isSetting) {
                 // save setting;
                 dismissCheckBox();
-                reverse = checkBox_reverse.isChecked();
                 shortcut = checkBox_shortcut.isChecked();
             } else {
                 Drawable drawable = getResources()
                         .getDrawable(R.mipmap.ic_done_white_48dp);
                 setting.setImageDrawable(drawable);
-                checkBox_reverse.setVisibility(View.VISIBLE);
                 checkBox_shortcut.setVisibility(View.VISIBLE);
                 Animation in = AnimationUtils.loadAnimation(getApplicationContext(),
                         R.anim.abc_grow_fade_in_from_bottom);
                 setting.startAnimation(in);
-                checkBox_reverse.startAnimation(in);
                 checkBox_shortcut.startAnimation(in);
                 isSetting = true;
             }
@@ -440,11 +429,9 @@ public class ZBarActivity extends Activity implements FileListFragment.FileSelec
                 R.anim.abc_grow_fade_in_from_bottom);
         setting.startAnimation(in);
 
-        checkBox_reverse.setVisibility(View.INVISIBLE);
         checkBox_shortcut.setVisibility(View.INVISIBLE);
         Animation out = AnimationUtils.loadAnimation(getApplicationContext(),
                 R.anim.abc_shrink_fade_out_from_bottom);
-        checkBox_reverse.startAnimation(out);
         checkBox_shortcut.startAnimation(out);
         isSetting = false;
     }
