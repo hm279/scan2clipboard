@@ -54,17 +54,17 @@ public class HistoryFragment extends ListFragment
     @Override
     public void onQueryComplete(Cursor cursor) {
         if (cursor != null) {
-            cursor.moveToNext();
-            int index = cursor.getColumnIndex(HistorySQLiteHelper.column_text);
-            int rowidIndex = cursor.getColumnIndex("rowid");
-            do {
-                list.add(cursor.getString(index));
-                rowids.add(cursor.getLong(rowidIndex));
-            } while (cursor.moveToNext());
+            if (cursor.moveToFirst()) {
+                int index = cursor.getColumnIndex(HistorySQLiteHelper.column_text);
+                int rowidIndex = cursor.getColumnIndex("rowid");
+                do {
+                    list.add(cursor.getString(index));
+                    rowids.add(cursor.getLong(rowidIndex));
+                } while (cursor.moveToNext());
+            }
             adapter = new HistoryAdapter(getActivity());
             adapter.updateAdapterData(list);
             setListAdapter(adapter);
-
             cursor.close();
         }
     }
