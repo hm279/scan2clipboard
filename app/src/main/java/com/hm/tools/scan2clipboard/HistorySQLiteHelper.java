@@ -18,7 +18,8 @@ public class HistorySQLiteHelper extends SQLiteOpenHelper {
 
     private static final String CREATE_TABLE ="CREATE TABLE IF NOT EXISTS " + mHistoryTableName + "("
             + column_text + ");";
-    private static final String query_all = "select rowid, * from " + mHistoryTableName;
+    private static final String query_all = "select rowid, * from " + mHistoryTableName
+            + " ORDER BY rowid DESC";
 
     private static HistorySQLiteHelper helper;
     public static HistorySQLiteHelper getInstance(Context context) {
