@@ -55,13 +55,14 @@ public class ZBarActivity extends Activity implements FileListFragment.FileSelec
     private static final String TAG = "ZBar";
     private Camera mCamera;
     private ImageScanner scanner;
+    private HistorySQLiteHelper helper;
 
     /** Three times normal decode, once reverse decode  */
     private int interval = 0;
 
 //    private SurfaceView mPreview;
     private Handler autoFocusHandler;
-    boolean previewing = true;
+    boolean previewing = false;
     boolean isSurfaceViewDestroyed = true;
     boolean autoFocus;
     boolean shortcut;
@@ -74,6 +75,7 @@ public class ZBarActivity extends Activity implements FileListFragment.FileSelec
     private CheckBox checkBox_shortcut;
 
     FileListFragment fileListFragment = null;
+    boolean canDismiss = false;
 
     static {
         System.loadLibrary("iconv");
@@ -113,6 +115,8 @@ public class ZBarActivity extends Activity implements FileListFragment.FileSelec
             setting.setOnClickListener(settingListener);
             ImageButton add = (ImageButton) findViewById(R.id.add);
             add.setOnClickListener(addListener);
+            ImageButton history = (ImageButton) findViewById(R.id.history);
+            history.setOnClickListener(historyListener);
 
             getSetting();
             if (shortcut) {
@@ -123,6 +127,8 @@ public class ZBarActivity extends Activity implements FileListFragment.FileSelec
             if (intent.getAction().equals(INTENT)) {
                 newIntent = true;
             }
+
+            helper = HistorySQLiteHelper.getInstance(this);
         } else {
             Toast.makeText(this, "failed to open Camera", Toast.LENGTH_LONG).show();
             finish();
@@ -162,20 +168,28 @@ public class ZBarActivity extends Activity implements FileListFragment.FileSelec
 //        Log.d(TAG, "onStop");
     }
 
+    /**
     @Override
     protected void onStart() {
         super.onStart();
+        //auto start
         if (previewing && !isSurfaceViewDestroyed) {
             mCamera.startPreview();
         }
 //        Log.d(TAG, "onStart");
     }
+     */
 
     @Override
     public void onBackPressed() {
-        if (fileListFragment != null) {
-            if (!fileListFragment.onBackPressed()) {
-                dismissFileListFragment();
+        if (canDismiss) {
+            if (fileListFragment != null) {
+                if (!fileListFragment.onBackPressed()) {
+                    dismissFragment();
+                    fileListFragment = null;
+                }
+            } else {
+                dismissFragment();
             }
             return;
         }
@@ -252,7 +266,7 @@ public class ZBarActivity extends Activity implements FileListFragment.FileSelec
         @Override
         public void onAutoFocus(boolean success, Camera camera) {
             autoFocusHandler.post(doAutoFocus);
-//            Log.d(TAG, "auto focus");
+            Log.d(TAG, "auto focus");
         }
     };
 
@@ -285,11 +299,11 @@ public class ZBarActivity extends Activity implements FileListFragment.FileSelec
             mCamera.stopPreview();
             mCamera.setDisplayOrientation(90);
             mCamera.setPreviewCallback(previewCallback);
-            mCamera.startPreview();
-            if (autoFocus) {
-                mCamera.autoFocus(autoFocusCallback);
-            }
-//            Log.d(TAG, "surfaceChanged");
+//            mCamera.startPreview();
+//            if (autoFocus) {
+//                mCamera.autoFocus(autoFocusCallback);
+//            }
+            Log.d(TAG, "surfaceChanged");
         }
 
         @Override
@@ -351,6 +365,8 @@ public class ZBarActivity extends Activity implements FileListFragment.FileSelec
         ClipboardManager manager = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
         ClipData data = ClipData.newPlainText(getString(R.string.app_name), resultList.get(0));
         manager.setPrimaryClip(data);
+        //record result
+        helper.insert(resultList.get(0));
         if (newIntent) {
             finish();
         } else {
@@ -390,7 +406,11 @@ public class ZBarActivity extends Activity implements FileListFragment.FileSelec
                 previewing = true;
                 mCamera.setPreviewCallback(previewCallback);
                 mCamera.startPreview();
+                if (autoFocus) {
+                    mCamera.autoFocus(autoFocusCallback);
+                }
                 textView.setVisibility(View.INVISIBLE);
+                Log.d(TAG, "onTouch");
             }
             if (isSetting) {
                 //dismiss checkbox without save them;
@@ -439,7 +459,7 @@ public class ZBarActivity extends Activity implements FileListFragment.FileSelec
     @Override
     public void onFileSelectedListener(File file) {
 //        Log.d("onFileSelectedListener", file.getAbsolutePath());
-        dismissFileListFragment();
+        dismissFragment();
         //image file convert to byte[] data
         Bitmap bitmap = BitmapFactory.decodeFile(file.getAbsolutePath());
         if (null != bitmap) {
@@ -463,6 +483,30 @@ public class ZBarActivity extends Activity implements FileListFragment.FileSelec
         Toast.makeText(this, "failed to decode", Toast.LENGTH_LONG).show();
     }
 
+    private void displayFragment(Fragment fragment) {
+        if (canDismiss) {
+            return;
+        }
+        FragmentManager manager = getFragmentManager();
+        manager.beginTransaction()
+                .add(R.id.camera_frame, fragment, TAG)
+                .setTransition(FragmentTransaction.TRANSIT_ENTER_MASK)
+                .commit();
+        canDismiss = true;
+    }
+
+    private void dismissFragment() {
+        FragmentManager manager = getFragmentManager();
+        Fragment fragment = manager.findFragmentByTag(TAG);
+        if (fragment != null) {
+            manager.beginTransaction()
+                    .remove(fragment)
+                    .setTransition(FragmentTransaction.TRANSIT_EXIT_MASK)
+                    .commit();
+            canDismiss = false;
+        }
+    }
+
     View.OnClickListener addListener = new View.OnClickListener() {
         @Override
         public void onClick(View v) {
@@ -471,22 +515,20 @@ public class ZBarActivity extends Activity implements FileListFragment.FileSelec
                 previewing = false;
             }
             fileListFragment = new FileListFragment();
-            getFragmentManager().beginTransaction()
-                    .add(R.id.camera_frame, fileListFragment, "file")
-                    .setTransition(FragmentTransaction.TRANSIT_FRAGMENT_OPEN)
-                    .commit();
+            displayFragment(fileListFragment);
         }
     };
 
-    private void dismissFileListFragment() {
-        if (fileListFragment != null) {
-            FragmentManager manager = getFragmentManager();
-            manager.beginTransaction()
-                    .remove(fileListFragment)
-                    .setTransition(FragmentTransaction.TRANSIT_FRAGMENT_CLOSE)
-                    .commit();
-            fileListFragment = null;
+    private View.OnClickListener historyListener = new View.OnClickListener() {
+        @Override
+        public void onClick(View v) {
+            if (previewing) {
+                mCamera.stopPreview();
+                previewing = false;
+            }
+            HistoryFragment fragment = new HistoryFragment();
+            displayFragment(fragment);
         }
-    }
+    };
 
 }

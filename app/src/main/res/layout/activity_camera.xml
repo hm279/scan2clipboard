@@ -15,7 +15,6 @@
         android:layout_alignParentStart="true" />
 
     <TextView
-        android:visibility="invisible"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:textAppearance="?android:attr/textAppearanceLarge"
@@ -24,6 +23,7 @@
         android:gravity="center"
         android:background="@android:color/white"
         android:padding="16dp"
+        android:text="Touch to scan"
         android:layout_alignParentTop="true"
         android:layout_alignParentLeft="true"
         android:layout_alignParentStart="true" />
@@ -72,5 +72,16 @@
         android:layout_marginEnd="24dp"
         android:layout_marginBottom="24dp"
         />
+
+    <ImageButton
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:scaleType="fitCenter"
+        android:id="@+id/history"
+        android:src="@mipmap/ic_history_white_48dp"
+        android:background="@android:color/transparent"
+        android:padding="8dp"
+        android:layout_alignBottom="@+id/setting"
+        android:layout_centerHorizontal="true" />
 
 </RelativeLayout>

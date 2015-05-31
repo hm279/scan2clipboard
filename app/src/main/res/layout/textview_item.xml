@@ -12,4 +12,3 @@
     android:textAppearance="@color/secondary_text_default_material_light"
     android:id="@+id/text_item"
     />
-    <!--android:background="?android:attr/activatedBackgroundIndicator"-->
