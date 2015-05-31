@@ -63,7 +63,7 @@ public class ZBarActivity extends Activity implements FileListFragment.FileSelec
 //    private SurfaceView mPreview;
     private Handler autoFocusHandler;
     boolean previewing = false;
-    boolean isSurfaceViewDestroyed = true;
+//    boolean isSurfaceViewDestroyed = true;
     boolean autoFocus;
     boolean shortcut;
     boolean newIntent = false;
@@ -287,7 +287,7 @@ public class ZBarActivity extends Activity implements FileListFragment.FileSelec
             } catch (IOException e) {
                 e.printStackTrace();
             }
-            isSurfaceViewDestroyed = false;
+//            isSurfaceViewDestroyed = false;
 //            Log.d(TAG, "surfaceCreated");
         }
 
@@ -308,7 +308,7 @@ public class ZBarActivity extends Activity implements FileListFragment.FileSelec
 
         @Override
         public void surfaceDestroyed(SurfaceHolder holder) {
-            isSurfaceViewDestroyed = true;
+//            isSurfaceViewDestroyed = true;
 //            Log.d(TAG, "surfaceDestroy");
         }
     };

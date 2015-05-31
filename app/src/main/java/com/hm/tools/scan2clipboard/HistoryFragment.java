@@ -36,6 +36,7 @@ public class HistoryFragment extends ListFragment
         super.onActivityCreated(savedInstanceState);
         setEmptyText("No record");
         handler.startQuery();
+        //TODO: should add swipe to remove instead of long click to remove
         getListView().setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
             @Override
             public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
