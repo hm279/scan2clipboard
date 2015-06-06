@@ -5,6 +5,9 @@ import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
+import android.util.Log;
+
+import java.util.ArrayList;
 
 /**
  * Created by hm on 15-5-30.
@@ -44,13 +47,20 @@ public class HistorySQLiteHelper extends SQLiteOpenHelper {
         onCreate(db);
     }
 
-    public long insert(String text) {
-        if (text==null || text.length() < 1) {
-            return -1;
+    public ArrayList<Long> insert(ArrayList<String> strings) {
+        ArrayList<Long> longs = new ArrayList<>();
+        SQLiteDatabase database = getWritableDatabase();
+        for (String text : strings) {
+            if (text == null || text.length() < 1) {
+                longs.add((long) -1);
+            } else {
+                ContentValues values = new ContentValues();
+                values.put(column_text, text);
+                long id = database.insert(mHistoryTableName, null, values);
+                longs.add(id);
+            }
         }
-        ContentValues values = new ContentValues();
-        values.put(column_text, text);
-        return getWritableDatabase().insert(mHistoryTableName, null, values);
+        return longs;
     }
 
     public Cursor query() {

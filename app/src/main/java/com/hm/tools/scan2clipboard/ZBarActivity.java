@@ -7,6 +7,7 @@ import android.app.FragmentTransaction;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.content.AsyncQueryHandler;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
@@ -18,9 +19,11 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.Drawable;
 import android.hardware.Camera;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.StrictMode;
+import android.provider.MediaStore;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
@@ -31,14 +34,9 @@ import android.view.animation.AnimationUtils;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
-
-import net.sourceforge.zbar.Config;
-import net.sourceforge.zbar.Image;
-import net.sourceforge.zbar.ImageScanner;
-import net.sourceforge.zbar.Symbol;
-import net.sourceforge.zbar.SymbolSet;
 
 import java.io.File;
 import java.io.IOException;
@@ -49,29 +47,28 @@ import java.util.List;
 /**
  * Created by hm on 15-3-16.
  */
-public class ZBarActivity extends Activity implements FileListFragment.FileSelectedListener {
+public class ZBarActivity extends Activity
+        implements FileListFragment.FileSelectedListener, AsyncDecodeHandler.DecodeCompleteListener{
     private static final String INTENT = "com.hm.tools.scan2clipboard";
     private static final String SHORTCUT = "shortcut";
     private static final String TAG = "ZBar";
     private Camera mCamera;
-    private ImageScanner scanner;
+    private Decoder decoder;
     private HistorySQLiteHelper helper;
 
     /** Three times normal decode, once reverse decode  */
     private int interval = 0;
 
-//    private SurfaceView mPreview;
     private Handler autoFocusHandler;
     boolean previewing = false;
-//    boolean isSurfaceViewDestroyed = true;
     boolean autoFocus;
     boolean shortcut;
     boolean newIntent = false;
     boolean isSetting = false;
-
+    boolean single;
+    private Record record = null;
     private TextView textView;
     private ImageButton setting;
-//    private ImageButton add;
     private CheckBox checkBox_shortcut;
 
     FileListFragment fileListFragment = null;
@@ -93,9 +90,6 @@ public class ZBarActivity extends Activity implements FileListFragment.FileSelec
             SurfaceView mPreview = (SurfaceView) findViewById(R.id.camera_preview);
             mPreview.getHolder().addCallback(holderCallback);
             autoFocusHandler = new Handler();
-            scanner = new ImageScanner();
-            scanner.setConfig(0, Config.X_DENSITY, 3);
-            scanner.setConfig(0, Config.Y_DENSITY, 3);
 
             mPreview.setOnTouchListener(touchListener);
 
@@ -122,13 +116,21 @@ public class ZBarActivity extends Activity implements FileListFragment.FileSelec
             if (shortcut) {
                 checkBox_shortcut.setChecked(true);
             }
+            decoder = new Decoder();
+            helper = HistorySQLiteHelper.getInstance(this);
 
             Intent intent = getIntent();
-            if (intent.getAction().equals(INTENT)) {
+            String action = intent.getAction();
+            String type = intent.getType();
+            if (action.equals(INTENT)) {
                 newIntent = true;
+            } else if (type != null && type.startsWith("image/")) {
+                if (Intent.ACTION_SEND.equals(action)) {
+                    handleIntentSingleImg(intent);
+                } else if (Intent.ACTION_SEND_MULTIPLE.equals(action)) {
+                    handleIntentMultipleImg(intent);
+                }
             }
-
-            helper = HistorySQLiteHelper.getInstance(this);
         } else {
             Toast.makeText(this, "failed to open Camera", Toast.LENGTH_LONG).show();
             finish();
@@ -156,7 +158,6 @@ public class ZBarActivity extends Activity implements FileListFragment.FileSelec
             setNotification();
         }
         saveSetting(shortcut);
-//        Log.d(TAG, "onDestroy");
     }
 
     @Override
@@ -165,7 +166,6 @@ public class ZBarActivity extends Activity implements FileListFragment.FileSelec
         if (previewing) {
             mCamera.stopPreview();
         }
-//        Log.d(TAG, "onStop");
     }
 
     /**
@@ -246,73 +246,6 @@ public class ZBarActivity extends Activity implements FileListFragment.FileSelec
 //        Log.d(TAG, "releaseCameraAndPreview");
     }
 
-    Camera.PreviewCallback previewCallback = new Camera.PreviewCallback() {
-        @Override
-        public void onPreviewFrame(byte[] data, Camera camera) {
-            Camera.Parameters parameters = camera.getParameters();
-            Camera.Size size = parameters.getPreviewSize();
-            ArrayList<String> result = decode(size.width, size.height, data);
-            if (result != null) {
-                previewing = false;
-                mCamera.setPreviewCallback(null);
-                mCamera.stopPreview();
-
-                setResult(result);
-            }
-        }
-    };
-
-    Camera.AutoFocusCallback autoFocusCallback = new Camera.AutoFocusCallback() {
-        @Override
-        public void onAutoFocus(boolean success, Camera camera) {
-            autoFocusHandler.post(doAutoFocus);
-            Log.d(TAG, "auto focus");
-        }
-    };
-
-    private Runnable doAutoFocus = new Runnable() {
-        @Override
-        public void run() {
-            if (previewing) {
-                mCamera.autoFocus(autoFocusCallback);
-            }
-        }
-    };
-
-    SurfaceHolder.Callback holderCallback = new SurfaceHolder.Callback() {
-        @Override
-        public void surfaceCreated(SurfaceHolder holder) {
-            try {
-                mCamera.setPreviewDisplay(holder);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-//            isSurfaceViewDestroyed = false;
-//            Log.d(TAG, "surfaceCreated");
-        }
-
-        @Override
-        public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-            if (holder.getSurface() == null) {
-                return;
-            }
-            mCamera.stopPreview();
-            mCamera.setDisplayOrientation(90);
-            mCamera.setPreviewCallback(previewCallback);
-//            mCamera.startPreview();
-//            if (autoFocus) {
-//                mCamera.autoFocus(autoFocusCallback);
-//            }
-            Log.d(TAG, "surfaceChanged");
-        }
-
-        @Override
-        public void surfaceDestroyed(SurfaceHolder holder) {
-//            isSurfaceViewDestroyed = true;
-//            Log.d(TAG, "surfaceDestroy");
-        }
-    };
-
     private boolean checkCameraHardware() {
         PackageManager manager = getPackageManager();
         if (manager.hasSystemFeature(PackageManager.FEATURE_CAMERA)
@@ -333,71 +266,73 @@ public class ZBarActivity extends Activity implements FileListFragment.FileSelec
         return false;
     }
 
-    private ArrayList<String> decode(int w, int h, byte[] data) {
-//        long s,e;
-//        s = System.currentTimeMillis();
-        interval++;
-        if (interval > 3) {
-            reverseImageData(data);
-            interval = 0;
-        }
-//        if (reverse) {
-//            reverseImageData(data);
-//        }
-        Image image = new Image(w, h, "Y800");
-        image.setData(data);
-        int result = scanner.scanImage(image);
-        if (result != 0) {
-            SymbolSet symbolSet = scanner.getResults();
-            ArrayList<String> list = new ArrayList<>();
-            for (Symbol symbol : symbolSet) {
-                list.add(symbol.getData());
-//                Log.v(TAG, symbol.getData());
+    Camera.PreviewCallback previewCallback = new Camera.PreviewCallback() {
+        @Override
+        public void onPreviewFrame(byte[] data, Camera camera) {
+            Camera.Parameters parameters = camera.getParameters();
+            Camera.Size size = parameters.getPreviewSize();
+            interval++;
+            if (interval > 3) {
+                Decoder.reverseImageData(data);
+                interval = 0;
             }
-//            e = System.currentTimeMillis();
-//            Log.v(TAG, "decode time is " + (e - s));
-            return list;
-        }
-        return null;
-    }
+            ArrayList<String> result = decoder.decode(size.width, size.height, data);
+            if (result != null) {
+                previewing = false;
+                mCamera.setPreviewCallback(null);
+                mCamera.stopPreview();
 
-    private void setResult(ArrayList<String> resultList) {
-        ClipboardManager manager = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-        ClipData data = ClipData.newPlainText(getString(R.string.app_name), resultList.get(0));
-        manager.setPrimaryClip(data);
-        //record result
-        helper.insert(resultList.get(0));
-        if (newIntent) {
-            finish();
-        } else {
-            textView.setText(resultList.get(0));
-            Animation in = AnimationUtils.loadAnimation(this, R.anim.abc_slide_in_top);
-            textView.setVisibility(View.VISIBLE);
-            textView.startAnimation(in);
+                setResult(result);
+            }
         }
-    }
+    };
 
-    private void reverseImageData(byte[] data) {
-        for (int i = 0; i < data.length; i++) {
-//            data[i] = (byte) (~data[i] & 0xff);
-            data[i] = (byte) (255 - data[i]);
+    Camera.AutoFocusCallback autoFocusCallback = new Camera.AutoFocusCallback() {
+        @Override
+        public void onAutoFocus(boolean success, Camera camera) {
+            autoFocusHandler.post(doAutoFocus);
+//            Log.d(TAG, "auto focus");
         }
-    }
+    };
 
-    private void saveSetting(boolean shortcut) {
-        SharedPreferences sharedPreferences = getPreferences(Context.MODE_PRIVATE);
-        if (sharedPreferences.getBoolean(SHORTCUT, false) == shortcut) {
-            return;
+    private Runnable doAutoFocus = new Runnable() {
+        @Override
+        public void run() {
+            if (previewing) {
+                mCamera.autoFocus(autoFocusCallback);
+            }
         }
-        SharedPreferences.Editor editor = sharedPreferences.edit();
-        editor.putBoolean(SHORTCUT, shortcut);
-        editor.apply();
-    }
+    };
 
-    private void getSetting() {
-        SharedPreferences sharedPreferences = getPreferences(Context.MODE_PRIVATE);
-        shortcut = sharedPreferences.getBoolean(SHORTCUT, false);
-    }
+    SurfaceHolder.Callback holderCallback = new SurfaceHolder.Callback() {
+        @Override
+        public void surfaceCreated(SurfaceHolder holder) {
+            try {
+                mCamera.setPreviewDisplay(holder);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        @Override
+        public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+            if (holder.getSurface() == null) {
+                return;
+            }
+            mCamera.stopPreview();
+            mCamera.setDisplayOrientation(90);
+            mCamera.setPreviewCallback(previewCallback);
+//            mCamera.startPreview();
+//            if (autoFocus) {
+//                mCamera.autoFocus(autoFocusCallback);
+//            }
+            Log.d(TAG, "surfaceChanged");
+        }
+
+        @Override
+        public void surfaceDestroyed(SurfaceHolder holder) {
+        }
+    };
 
     View.OnTouchListener touchListener = new View.OnTouchListener() {
         @Override
@@ -441,56 +376,88 @@ public class ZBarActivity extends Activity implements FileListFragment.FileSelec
         }
     };
 
-    private void dismissCheckBox() {
-        Drawable drawable = getResources()
-                .getDrawable(R.mipmap.ic_settings_white_48dp);
-        setting.setImageDrawable(drawable);
-        Animation in = AnimationUtils.loadAnimation(getApplicationContext(),
-                R.anim.abc_grow_fade_in_from_bottom);
-        setting.startAnimation(in);
-
-        checkBox_shortcut.setVisibility(View.INVISIBLE);
-        Animation out = AnimationUtils.loadAnimation(getApplicationContext(),
-                R.anim.abc_shrink_fade_out_from_bottom);
-        checkBox_shortcut.startAnimation(out);
-        isSetting = false;
-    }
-
     @Override
     public void onFileSelectedListener(File file) {
 //        Log.d("onFileSelectedListener", file.getAbsolutePath());
         dismissFragment();
         //image file convert to byte[] data
         Bitmap bitmap = BitmapFactory.decodeFile(file.getAbsolutePath());
-        if (null != bitmap) {
-            int w = bitmap.getWidth();
-            int h = bitmap.getHeight();
-            int[] pixels = new int[w * h];
-            bitmap.getPixels(pixels, 0, w, 0, 0, w, h);
-            Image data = new Image(w, h, "RGB4");
-            data.setData(pixels);
-            int result = scanner.scanImage(data.convert("Y800"));
-            if (result != 0) {
-                SymbolSet symbolSet = scanner.getResults();
-                ArrayList<String> list = new ArrayList<>();
-                for (Symbol symbol : symbolSet) {
-                    list.add(symbol.getData());
-                }
-                setResult(list);
-                return;
-            }
+        if (bitmap == null) {
+            Toast.makeText(this, "selected file maybe not an image", Toast.LENGTH_LONG).show();
+            return;
         }
-        Toast.makeText(this, "failed to decode", Toast.LENGTH_LONG).show();
+        ArrayList<String> result = decoder.decode(bitmap);
+        if (result == null) {
+            Toast.makeText(this, "none code", Toast.LENGTH_LONG).show();
+        } else {
+            setResult(result);
+            Toast.makeText(this, "has code, showing in top", Toast.LENGTH_LONG).show();
+        }
     }
 
-    private void displayFragment(Fragment fragment) {
+    View.OnClickListener addListener = new View.OnClickListener() {
+        @Override
+        public void onClick(View v) {
+            if (previewing) {
+                mCamera.stopPreview();
+                previewing = false;
+            }
+            fileListFragment = new FileListFragment();
+            showFragment(fileListFragment);
+        }
+    };
+
+    private View.OnClickListener historyListener = new View.OnClickListener() {
+        @Override
+        public void onClick(View v) {
+            if (previewing) {
+                mCamera.stopPreview();
+                previewing = false;
+            }
+            HistoryFragment fragment = new HistoryFragment();
+            showFragment(fragment);
+        }
+    };
+
+    private void setResult(ArrayList<String> resultList) {
+        ClipboardManager manager = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+        ClipData data = ClipData.newPlainText(getString(R.string.app_name), resultList.get(0));
+        manager.setPrimaryClip(data);
+        //record result
+        helper.insert(resultList);
+        if (newIntent) {
+            finish();
+        } else {
+            textView.setText(resultList.get(0));
+            Animation in = AnimationUtils.loadAnimation(this, R.anim.abc_slide_in_top);
+            textView.setVisibility(View.VISIBLE);
+            textView.startAnimation(in);
+        }
+    }
+
+    private void saveSetting(boolean shortcut) {
+        SharedPreferences sharedPreferences = getPreferences(Context.MODE_PRIVATE);
+        if (sharedPreferences.getBoolean(SHORTCUT, false) == shortcut) {
+            return;
+        }
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.putBoolean(SHORTCUT, shortcut);
+        editor.apply();
+    }
+
+    private void getSetting() {
+        SharedPreferences sharedPreferences = getPreferences(Context.MODE_PRIVATE);
+        shortcut = sharedPreferences.getBoolean(SHORTCUT, false);
+    }
+
+    private void showFragment(Fragment fragment) {
         if (canDismiss) {
             return;
         }
         FragmentManager manager = getFragmentManager();
         manager.beginTransaction()
                 .add(R.id.camera_frame, fragment, TAG)
-                .setTransition(FragmentTransaction.TRANSIT_ENTER_MASK)
+                .setTransition(FragmentTransaction.TRANSIT_ENTER_MASK) //TODO:setTransition
                 .commit();
         canDismiss = true;
     }
@@ -507,28 +474,96 @@ public class ZBarActivity extends Activity implements FileListFragment.FileSelec
         }
     }
 
-    View.OnClickListener addListener = new View.OnClickListener() {
-        @Override
-        public void onClick(View v) {
-            if (previewing) {
-                mCamera.stopPreview();
-                previewing = false;
-            }
-            fileListFragment = new FileListFragment();
-            displayFragment(fileListFragment);
-        }
-    };
+    private void dismissCheckBox() {
+        Drawable drawable = getResources()
+                .getDrawable(R.mipmap.ic_settings_white_48dp);
+        setting.setImageDrawable(drawable);
+        Animation in = AnimationUtils.loadAnimation(getApplicationContext(),
+                R.anim.abc_grow_fade_in_from_bottom);
+        setting.startAnimation(in);
 
-    private View.OnClickListener historyListener = new View.OnClickListener() {
-        @Override
-        public void onClick(View v) {
-            if (previewing) {
-                mCamera.stopPreview();
-                previewing = false;
-            }
-            HistoryFragment fragment = new HistoryFragment();
-            displayFragment(fragment);
+        checkBox_shortcut.setVisibility(View.INVISIBLE);
+        Animation out = AnimationUtils.loadAnimation(getApplicationContext(),
+                R.anim.abc_shrink_fade_out_from_bottom);
+        checkBox_shortcut.startAnimation(out);
+        isSetting = false;
+    }
+
+    private void handleIntentSingleImg(Intent intent) {
+        Uri imgUri = intent.getParcelableExtra(Intent.EXTRA_STREAM);
+        if (imgUri != null) {
+            single = true;
+            AsyncDecodeHandler handler = new AsyncDecodeHandler(this, decoder, this);
+            handler.decodeBitmap(imgUri);
         }
-    };
+    }
+
+    private void singleDecodeComplete(ArrayList<String> result, int error) {
+        if (error == Decoder.ERROR_NO_RESULT) {
+            Toast.makeText(this, "none code", Toast.LENGTH_LONG).show();
+        } else if (error == Decoder.ERROR_NO_ERROR){
+            setResult(result);
+            Toast.makeText(this, "has code, showing in top", Toast.LENGTH_LONG).show();
+        } else if (error == Decoder.ERROR_NO_BITMAP){
+            Toast.makeText(this, "input data not found", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void handleIntentMultipleImg(Intent intent) {
+        if (record != null) {
+            Toast.makeText(this, "running decoding, please wait until finish", Toast.LENGTH_LONG).show();
+            return;
+        }
+        single = false;
+        ArrayList<Uri> uriArrayList = intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM);
+        record = new Record(uriArrayList.size());
+
+        AsyncDecodeHandler handler = new AsyncDecodeHandler(this, decoder, this);
+        for (Uri uri : uriArrayList) {
+            handler.decodeBitmap(uri);
+        }
+    }
+
+    @Override
+    public void onDecodeComplete(ArrayList<String> result, int error) {
+        if (single) {
+            singleDecodeComplete(result, error);
+            return;
+        }
+        record.count++;
+        String hint = record.count + " image's result:";
+        if (error == Decoder.ERROR_NO_ERROR) {
+            record.success++;
+            record.results += result.size();
+            hint = hint + result.get(0);
+            textView.setText(result.get(0));
+        } else if (error == Decoder.ERROR_NO_RESULT){
+            record.fail++;
+        } else if (error == Decoder.ERROR_NO_BITMAP) {
+            record.miss++;
+        }
+        textView.setText(hint);
+        if (record.count == record.total) {
+            String str = "total results: " + record.results
+                    + "\n has code images: " + record.success
+                    + "\n no code images: " + record.fail
+                    + "\n missing images: " + record.miss;
+            textView.setText(str);
+            record = null;
+        }
+    }
+
+    private class Record {
+        int results = 0;
+        int success = 0;
+        int miss = 0;
+        int fail = 0;
+        int count = 0;
+        int total;
+
+        public Record(int total) {
+            this.total = total;
+        }
+    }
 
 }

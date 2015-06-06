@@ -8,6 +8,7 @@ import android.os.Looper;
 import android.os.Message;
 
 import java.lang.ref.WeakReference;
+import java.util.ArrayList;
 
 
 /**
@@ -60,7 +61,10 @@ public class HistoryAsyncQueryHandler extends Handler {
                     args.result = helper.query();
                     break;
                 case EVENT_MY_INSERT:
-                    args.rowid = helper.insert(args.text);
+                    ArrayList<String> list = new ArrayList<>(1);
+                    list.add(args.text);
+                    ArrayList<Long> rowids = helper.insert(list);
+                    args.rowid = rowids.get(0);
                     break;
                 case EVENT_MY_UPDATE:
                     args.rowid = helper.update(args.rowid, args.text);
