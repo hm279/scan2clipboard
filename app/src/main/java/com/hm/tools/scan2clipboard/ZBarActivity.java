@@ -7,9 +7,6 @@ import android.app.FragmentTransaction;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
-import android.content.AsyncQueryHandler;
-import android.content.ClipData;
-import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -23,7 +20,6 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.StrictMode;
-import android.provider.MediaStore;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
@@ -34,7 +30,6 @@ import android.view.animation.AnimationUtils;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
 import android.widget.ImageButton;
-import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -54,7 +49,8 @@ public class ZBarActivity extends Activity
     private static final String TAG = "ZBar";
     private Camera mCamera;
     private Decoder decoder;
-    private HistorySQLiteHelper helper;
+//    private HistorySQLiteHelper helper;
+    private HistoryAsyncQueryHandler asyncQueryHandler;
 
     /** Three times normal decode, once reverse decode  */
     private int interval = 0;
@@ -117,7 +113,7 @@ public class ZBarActivity extends Activity
                 checkBox_shortcut.setChecked(true);
             }
             decoder = new Decoder();
-            helper = HistorySQLiteHelper.getInstance(this);
+            asyncQueryHandler = new HistoryAsyncQueryHandler(this, null);
 
             Intent intent = getIntent();
             String action = intent.getAction();
@@ -420,18 +416,21 @@ public class ZBarActivity extends Activity
     };
 
     private void setResult(ArrayList<String> resultList) {
-        ClipboardManager manager = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-        ClipData data = ClipData.newPlainText(getString(R.string.app_name), resultList.get(0));
-        manager.setPrimaryClip(data);
         //record result
-        helper.insert(resultList);
-        if (newIntent) {
-            finish();
+        asyncQueryHandler.startInsert(resultList);
+
+        if (resultList.size() == 1){
+            Clipboard.setText(this, resultList.get(0));
+            if (newIntent) {
+                finish();
+            } else {
+                textView.setText(resultList.get(0));
+                Animation in = AnimationUtils.loadAnimation(this, R.anim.abc_slide_in_top);
+                textView.setVisibility(View.VISIBLE);
+                textView.startAnimation(in);
+            }
         } else {
-            textView.setText(resultList.get(0));
-            Animation in = AnimationUtils.loadAnimation(this, R.anim.abc_slide_in_top);
-            textView.setVisibility(View.VISIBLE);
-            textView.startAnimation(in);
+            showMultipleResults(resultList);
         }
     }
 
@@ -489,6 +488,14 @@ public class ZBarActivity extends Activity
         isSetting = false;
     }
 
+    private void showMultipleResults(ArrayList<String> list) {
+        Bundle bundle = new Bundle();
+        bundle.putStringArrayList(ListResultDialog.key, list);
+        ListResultDialog dialog = new ListResultDialog();
+        dialog.setArguments(bundle);
+        dialog.show(getFragmentManager(), null);
+    }
+
     private void handleIntentSingleImg(Intent intent) {
         Uri imgUri = intent.getParcelableExtra(Intent.EXTRA_STREAM);
         if (imgUri != null) {
@@ -531,30 +538,28 @@ public class ZBarActivity extends Activity
             return;
         }
         record.count++;
-        String hint = record.count + " image's result:";
         if (error == Decoder.ERROR_NO_ERROR) {
             record.success++;
-            record.results += result.size();
-            hint = hint + result.get(0);
-            textView.setText(result.get(0));
+            record.results.addAll(result);
         } else if (error == Decoder.ERROR_NO_RESULT){
             record.fail++;
         } else if (error == Decoder.ERROR_NO_BITMAP) {
             record.miss++;
         }
-        textView.setText(hint);
+        textView.setText(record.total + "/" + record.count);
         if (record.count == record.total) {
-            String str = "total results: " + record.results
+            setResult(record.results);
+            String str = "total results: " + record.results.size()
                     + "\n has code images: " + record.success
                     + "\n no code images: " + record.fail
                     + "\n missing images: " + record.miss;
-            textView.setText(str);
+            Log.d("results", str);
             record = null;
         }
     }
 
     private class Record {
-        int results = 0;
+        ArrayList<String> results;
         int success = 0;
         int miss = 0;
         int fail = 0;
@@ -563,6 +568,7 @@ public class ZBarActivity extends Activity
 
         public Record(int total) {
             this.total = total;
+            results = new ArrayList<>();
         }
     }
 

@@ -26,10 +26,11 @@ public class HistoryAsyncQueryHandler extends Handler {
     private WeakReference<HistoryCompleteListener> weakReference;
 
     protected static final class WorkerArgs {
-        public Handler handler;
-        public Cursor result;
-        public long rowid;
-        public String text;
+        Handler handler;
+        Cursor cursor;
+        long rowid;
+        String text;
+        ArrayList<String> results;
     }
 
     public HistoryAsyncQueryHandler(Context context, HistoryCompleteListener listener) {
@@ -58,13 +59,11 @@ public class HistoryAsyncQueryHandler extends Handler {
             switch (msg.what) {
                 case EVENT_MY_QUERY:
                     //do query
-                    args.result = helper.query();
+                    args.cursor = helper.query();
                     break;
                 case EVENT_MY_INSERT:
-                    ArrayList<String> list = new ArrayList<>(1);
-                    list.add(args.text);
-                    ArrayList<Long> rowids = helper.insert(list);
-                    args.rowid = rowids.get(0);
+                    ArrayList<Long> ids = helper.insert(args.results);
+                    args.rowid = ids.get(0);
                     break;
                 case EVENT_MY_UPDATE:
                     args.rowid = helper.update(args.rowid, args.text);
@@ -91,7 +90,7 @@ public class HistoryAsyncQueryHandler extends Handler {
         switch (msg.what) {
             case EVENT_MY_QUERY:
                 //finish query
-                listener.onQueryComplete(args.result);
+                listener.onQueryComplete(args.cursor);
                 break;
             case EVENT_MY_INSERT:
                 listener.onInsertComplete(args.rowid);
@@ -100,7 +99,7 @@ public class HistoryAsyncQueryHandler extends Handler {
                 listener.onUpdateComplete(args.rowid);
                 break;
             case EVENT_MY_DELETE:
-                listener.onDeleteComplete(args.rowid);
+                listener.onDeleteComplete((int) args.rowid);
                 break;
             default:
                 super.handleMessage(msg);
@@ -115,10 +114,10 @@ public class HistoryAsyncQueryHandler extends Handler {
         message.sendToTarget();
     }
 
-    public void startInsert(String text) {
+    public void startInsert(ArrayList<String> results) {
         WorkerArgs args = new WorkerArgs();
         args.handler = this;
-        args.text = text;
+        args.results = results;
         Message message = mWorkerHandler.obtainMessage(EVENT_MY_INSERT);
         message.obj = args;
         message.sendToTarget();
@@ -148,7 +147,7 @@ public class HistoryAsyncQueryHandler extends Handler {
         void onQueryComplete(Cursor cursor);
         void onInsertComplete(long id);
         void onUpdateComplete(long id);
-        void onDeleteComplete(long id);
+        void onDeleteComplete(int count);
     }
 
 }

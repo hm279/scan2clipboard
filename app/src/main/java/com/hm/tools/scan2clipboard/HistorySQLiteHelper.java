@@ -67,9 +67,14 @@ public class HistorySQLiteHelper extends SQLiteOpenHelper {
         return getReadableDatabase().rawQuery(query_all, null, null);
     }
 
-    public long delete(long rowid) {
-        return getWritableDatabase()
-                .delete(mHistoryTableName, "rowid=?", new String[]{Long.toString(rowid)});
+    public int delete(long rowid) {
+        SQLiteDatabase database = getWritableDatabase();
+        if (rowid == -1) {
+            //delete add records
+            return database.delete(mHistoryTableName, null, null);
+        } else {
+            return database.delete(mHistoryTableName, "rowid=?", new String[]{Long.toString(rowid)});
+        }
     }
 
     public long update(long rowid, String text) {
