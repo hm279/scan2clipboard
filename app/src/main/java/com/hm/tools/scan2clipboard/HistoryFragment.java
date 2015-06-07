@@ -47,7 +47,7 @@ public class HistoryFragment extends ListFragment
                             clickCount++;
                             imageView.setImageResource(R.mipmap.ic_done_white_48dp);
 
-                            Toast.makeText(getActivity(), "confirm to clear!!!",
+                            Toast.makeText(getActivity(), "press again to clear!!!",
                                     Toast.LENGTH_LONG).show();
                             imageView.postDelayed(new Runnable() {
                                 @Override

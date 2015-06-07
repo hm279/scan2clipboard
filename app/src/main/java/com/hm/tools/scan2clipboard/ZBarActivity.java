@@ -279,6 +279,8 @@ public class ZBarActivity extends Activity
                 mCamera.stopPreview();
 
                 setResult(result);
+                //record result
+                asyncQueryHandler.startInsert(result);
             }
         }
     };
@@ -387,6 +389,8 @@ public class ZBarActivity extends Activity
             Toast.makeText(this, "none code", Toast.LENGTH_LONG).show();
         } else {
             setResult(result);
+            //record result
+            asyncQueryHandler.startInsert(result);
             Toast.makeText(this, "has code, showing in top", Toast.LENGTH_LONG).show();
         }
     }
@@ -417,7 +421,7 @@ public class ZBarActivity extends Activity
 
     private void setResult(ArrayList<String> resultList) {
         //record result
-        asyncQueryHandler.startInsert(resultList);
+//        asyncQueryHandler.startInsert(resultList);
 
         if (resultList.size() == 1){
             Clipboard.setText(this, resultList.get(0));
@@ -509,6 +513,7 @@ public class ZBarActivity extends Activity
         if (error == Decoder.ERROR_NO_RESULT) {
             Toast.makeText(this, "none code", Toast.LENGTH_LONG).show();
         } else if (error == Decoder.ERROR_NO_ERROR){
+            //in the async thread the result had been recorded.
             setResult(result);
             Toast.makeText(this, "has code, showing in top", Toast.LENGTH_LONG).show();
         } else if (error == Decoder.ERROR_NO_BITMAP){
@@ -548,6 +553,7 @@ public class ZBarActivity extends Activity
         }
         textView.setText(record.total + "/" + record.count);
         if (record.count == record.total) {
+            //in the async thread the result had been recorded.
             setResult(record.results);
             String str = "total results: " + record.results.size()
                     + "\n has code images: " + record.success
