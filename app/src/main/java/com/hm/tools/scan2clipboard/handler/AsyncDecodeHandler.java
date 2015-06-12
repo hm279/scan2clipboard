@@ -1,4 +1,4 @@
-package com.hm.tools.scan2clipboard;
+package com.hm.tools.scan2clipboard.handler;
 
 import android.content.Context;
 import android.graphics.Bitmap;
@@ -8,6 +8,9 @@ import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.Message;
 import android.provider.MediaStore;
+
+import com.hm.tools.scan2clipboard.HistorySQLiteHelper;
+import com.hm.tools.scan2clipboard.utils.Decoder;
 
 import java.io.IOException;
 import java.lang.ref.WeakReference;
@@ -39,7 +42,7 @@ public class AsyncDecodeHandler extends Handler{
         this.decoder = decoder;
         this.helper = HistorySQLiteHelper.getInstance(context);
         listenerWeakReference = new WeakReference<>(listener);
-        synchronized (HistoryAsyncQueryHandler.class) {
+        synchronized (HistoryAsyncHandler.class) {
             if (sLooper == null) {
                 HandlerThread thread = new HandlerThread("AsyncDecodeWorker");
                 thread.start();
@@ -108,7 +111,7 @@ public class AsyncDecodeHandler extends Handler{
         message.sendToTarget();
     }
 
-    interface DecodeCompleteListener {
+    public interface DecodeCompleteListener {
         void onDecodeComplete(ArrayList<String> result, int error);
     }
 

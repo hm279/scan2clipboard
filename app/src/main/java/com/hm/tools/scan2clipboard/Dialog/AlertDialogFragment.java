@@ -1,4 +1,4 @@
-package com.hm.tools.scan2clipboard;
+package com.hm.tools.scan2clipboard.Dialog;
 
 import android.app.Activity;
 import android.app.AlertDialog;

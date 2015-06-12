@@ -1,4 +1,4 @@
-package com.hm.tools.scan2clipboard;
+package com.hm.tools.scan2clipboard.handler;
 
 import android.content.Context;
 import android.database.Cursor;
@@ -7,6 +7,8 @@ import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.Message;
 
+import com.hm.tools.scan2clipboard.HistorySQLiteHelper;
+
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 
@@ -14,7 +16,7 @@ import java.util.ArrayList;
 /**
  * Created by hm on 15-5-30.
  */
-public class HistoryAsyncQueryHandler extends Handler {
+public class HistoryAsyncHandler extends Handler {
     private static final int EVENT_MY_QUERY = 1;
     private static final int EVENT_MY_INSERT = 2;
     private static final int EVENT_MY_UPDATE = 3;
@@ -33,11 +35,11 @@ public class HistoryAsyncQueryHandler extends Handler {
         ArrayList<String> results;
     }
 
-    public HistoryAsyncQueryHandler(Context context, HistoryCompleteListener listener) {
+    public HistoryAsyncHandler(Context context, HistoryCompleteListener listener) {
         super();
         helper = HistorySQLiteHelper.getInstance(context);
         weakReference = new WeakReference<>(listener);
-        synchronized (HistoryAsyncQueryHandler.class) {
+        synchronized (HistoryAsyncHandler.class) {
             if (sLooper == null) {
                 HandlerThread thread = new HandlerThread("HistoryAsyncQueryWorker");
                 thread.start();
@@ -143,7 +145,7 @@ public class HistoryAsyncQueryHandler extends Handler {
         message.sendToTarget();
     }
 
-    interface HistoryCompleteListener {
+    public interface HistoryCompleteListener {
         void onQueryComplete(Cursor cursor);
         void onInsertComplete(long id);
         void onUpdateComplete(long id);

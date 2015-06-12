@@ -33,6 +33,12 @@ import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.hm.tools.scan2clipboard.Dialog.ListResultDialog;
+import com.hm.tools.scan2clipboard.handler.AsyncDecodeHandler;
+import com.hm.tools.scan2clipboard.handler.HistoryAsyncHandler;
+import com.hm.tools.scan2clipboard.utils.Clipboard;
+import com.hm.tools.scan2clipboard.utils.Decoder;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -50,7 +56,7 @@ public class ZBarActivity extends Activity
     private Camera mCamera;
     private Decoder decoder;
 //    private HistorySQLiteHelper helper;
-    private HistoryAsyncQueryHandler asyncQueryHandler;
+    private HistoryAsyncHandler asyncQueryHandler;
 
     /** Three times normal decode, once reverse decode  */
     private int interval = 0;
@@ -113,7 +119,7 @@ public class ZBarActivity extends Activity
                 checkBox_shortcut.setChecked(true);
             }
             decoder = new Decoder();
-            asyncQueryHandler = new HistoryAsyncQueryHandler(this, null);
+            asyncQueryHandler = new HistoryAsyncHandler(this, null);
 
             Intent intent = getIntent();
             String action = intent.getAction();

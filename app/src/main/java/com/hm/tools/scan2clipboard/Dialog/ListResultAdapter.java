@@ -1,4 +1,4 @@
-package com.hm.tools.scan2clipboard;
+package com.hm.tools.scan2clipboard.Dialog;
 
 import android.content.Context;
 import android.text.util.Linkify;
@@ -7,6 +7,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
 import android.widget.TextView;
+
+import com.hm.tools.scan2clipboard.R;
 
 import java.util.ArrayList;
 

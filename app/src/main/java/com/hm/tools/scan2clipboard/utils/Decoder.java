@@ -1,4 +1,4 @@
-package com.hm.tools.scan2clipboard;
+package com.hm.tools.scan2clipboard.utils;
 
 import android.graphics.Bitmap;
 import android.util.Log;

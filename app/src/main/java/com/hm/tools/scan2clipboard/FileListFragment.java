@@ -14,6 +14,8 @@ import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
 
+import com.hm.tools.scan2clipboard.Dialog.AlertDialogFragment;
+
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;

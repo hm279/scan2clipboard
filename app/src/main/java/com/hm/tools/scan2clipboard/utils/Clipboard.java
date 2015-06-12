@@ -1,8 +1,10 @@
-package com.hm.tools.scan2clipboard;
+package com.hm.tools.scan2clipboard.utils;
 
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
+
+import com.hm.tools.scan2clipboard.R;
 
 /**
  * Created by hm on 15-6-7.

@@ -1,4 +1,4 @@
-package com.hm.tools.scan2clipboard;
+package com.hm.tools.scan2clipboard.Dialog;
 
 import android.app.AlertDialog;
 import android.app.Dialog;
@@ -7,6 +7,8 @@ import android.content.DialogInterface;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.Toast;
+
+import com.hm.tools.scan2clipboard.utils.Clipboard;
 
 import java.util.ArrayList;
 
