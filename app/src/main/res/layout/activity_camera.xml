@@ -45,9 +45,10 @@
         android:layout_width="56dp"
         android:layout_height="56dp"
         android:scaleType="fitCenter"
-        android:id="@+id/setting"
-        android:src="@mipmap/ic_settings_white_48dp"
+        android:id="@+id/flash"
+        android:src="@mipmap/light"
         android:background="@android:color/transparent"
+        android:tint="@android:color/white"
         android:padding="8dp"
         android:layout_alignParentBottom="true"
         android:layout_alignParentLeft="true"
@@ -58,13 +59,26 @@
         />
 
     <ImageButton
+        android:visibility="invisible"
         android:layout_width="56dp"
         android:layout_height="56dp"
         android:scaleType="fitCenter"
-        android:id="@+id/add"
-        android:src="@mipmap/ic_attachment_white_48dp"
+        android:id="@+id/setting"
+        android:src="@mipmap/ic_settings_white_48dp"
         android:background="@android:color/transparent"
         android:padding="8dp"
+        android:layout_above="@+id/history"
+        android:layout_alignLeft="@+id/history"
+        android:layout_alignStart="@+id/history"
+        android:layout_marginBottom="16dp" />
+
+    <ImageButton
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:scaleType="fitCenter"
+        android:id="@+id/expand"
+        android:src="@mipmap/ic_expand_less_white_48dp"
+        android:background="@android:color/transparent"
         android:layout_alignParentBottom="true"
         android:layout_alignParentRight="true"
         android:layout_alignParentEnd="true"
@@ -74,6 +88,7 @@
         />
 
     <ImageButton
+        android:visibility="invisible"
         android:layout_width="56dp"
         android:layout_height="56dp"
         android:scaleType="fitCenter"
@@ -81,7 +96,23 @@
         android:src="@mipmap/ic_history_white_48dp"
         android:background="@android:color/transparent"
         android:padding="8dp"
-        android:layout_alignBottom="@+id/setting"
-        android:layout_centerHorizontal="true" />
+        android:layout_above="@+id/add_file"
+        android:layout_alignLeft="@+id/add_file"
+        android:layout_alignStart="@+id/add_file"
+        android:layout_marginBottom="16dp" />
+
+    <ImageButton
+        android:visibility="invisible"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:scaleType="fitCenter"
+        android:id="@+id/add_file"
+        android:src="@mipmap/ic_attachment_white_48dp"
+        android:background="@android:color/transparent"
+        android:padding="8dp"
+        android:layout_above="@+id/expand"
+        android:layout_alignLeft="@+id/expand"
+        android:layout_alignStart="@+id/expand"
+        android:layout_marginBottom="16dp" />
 
 </RelativeLayout>

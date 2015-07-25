@@ -67,10 +67,15 @@ public class ZBarActivity extends Activity
     boolean shortcut;
     boolean newIntent = false;
     boolean isSetting = false;
+    boolean isExpand = false;
     boolean single;
     private Record record = null;
     private TextView textView;
     private ImageButton setting;
+    private ImageButton history;
+    private ImageButton attachment;
+    private ImageButton expand;
+    private ImageButton flash;
     private CheckBox checkBox_shortcut;
 
     FileListFragment fileListFragment = null;
@@ -108,11 +113,16 @@ public class ZBarActivity extends Activity
             });
             textView = (TextView) findViewById(R.id.textView);
             setting = (ImageButton) findViewById(R.id.setting);
+            expand = (ImageButton) findViewById(R.id.expand);
+            history = (ImageButton) findViewById(R.id.history);
+            attachment = (ImageButton) findViewById(R.id.add_file);
+            flash = (ImageButton) findViewById(R.id.flash);
+
             setting.setOnClickListener(settingListener);
-            ImageButton add = (ImageButton) findViewById(R.id.add);
-            add.setOnClickListener(addListener);
-            ImageButton history = (ImageButton) findViewById(R.id.history);
+            expand.setOnClickListener(expandListener);
+            attachment.setOnClickListener(addListener);
             history.setOnClickListener(historyListener);
+            flash.setOnClickListener(flashListener);
 
             getSetting();
             if (shortcut) {
@@ -167,6 +177,7 @@ public class ZBarActivity extends Activity
         super.onStop();
         if (previewing) {
             mCamera.stopPreview();
+            previewing = false;
         }
     }
 
@@ -268,6 +279,23 @@ public class ZBarActivity extends Activity
         return false;
     }
 
+    private boolean flashToggle() {
+        boolean canFlash = getPackageManager().hasSystemFeature(PackageManager.FEATURE_CAMERA_FLASH);
+        boolean on = false;
+        if (canFlash) {
+            Camera.Parameters parameters = mCamera.getParameters();
+            if (!Camera.Parameters.FLASH_MODE_TORCH.equals(parameters.getFlashMode())) {
+                parameters.setFlashMode(Camera.Parameters.FLASH_MODE_TORCH);
+                on = true;
+            } else {
+                parameters.setFlashMode(Camera.Parameters.FLASH_MODE_OFF);
+                on = false;
+            }
+            mCamera.setParameters(parameters);
+        }
+        return on;
+    }
+
     Camera.PreviewCallback previewCallback = new Camera.PreviewCallback() {
         @Override
         public void onPreviewFrame(byte[] data, Camera camera) {
@@ -362,6 +390,10 @@ public class ZBarActivity extends Activity
     View.OnClickListener settingListener = new View.OnClickListener() {
         @Override
         public void onClick(View v) {
+            if (previewing) {
+                mCamera.stopPreview();
+                previewing = false;
+            }
             if (isSetting) {
                 // save setting;
                 dismissCheckBox();
@@ -422,6 +454,48 @@ public class ZBarActivity extends Activity
             }
             HistoryFragment fragment = new HistoryFragment();
             showFragment(fragment);
+        }
+    };
+
+    private View.OnClickListener expandListener = new View.OnClickListener() {
+        @Override
+        public void onClick(View v) {
+            if (previewing) {
+                mCamera.stopPreview();
+                previewing = false;
+            }
+            Animation in;
+            if (isExpand) {
+                isExpand = false;
+                expand.setImageResource(R.mipmap.ic_expand_less_white_48dp);
+                setting.setVisibility(View.GONE);
+                history.setVisibility(View.GONE);
+                attachment.setVisibility(View.GONE);
+                in = AnimationUtils.loadAnimation(getApplicationContext(),
+                        R.anim.abc_shrink_fade_out_from_bottom);
+            } else {
+                isExpand = true;
+                expand.setImageResource(R.mipmap.ic_expand_more_white_48dp);
+                setting.setVisibility(View.VISIBLE);
+                history.setVisibility(View.VISIBLE);
+                attachment.setVisibility(View.VISIBLE);
+                in = AnimationUtils.loadAnimation(getApplicationContext(),
+                        R.anim.abc_grow_fade_in_from_bottom);
+            }
+            setting.startAnimation(in);
+            history.startAnimation(in);
+            attachment.startAnimation(in);
+        }
+    };
+
+    private View.OnClickListener flashListener = new View.OnClickListener() {
+        @Override
+        public void onClick(View v) {
+            if (flashToggle()) {
+                flash.setColorFilter(getResources().getColor(R.color.material_normal));
+            } else {
+                flash.setColorFilter(getResources().getColor(android.R.color.white));
+            }
         }
     };
 
