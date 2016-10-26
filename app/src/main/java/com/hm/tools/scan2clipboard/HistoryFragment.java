@@ -1,8 +1,12 @@
 package com.hm.tools.scan2clipboard;
 
+import android.app.Activity;
 import android.app.Fragment;
+import android.content.Context;
+import android.content.DialogInterface;
 import android.database.Cursor;
 import android.os.Bundle;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.helper.ItemTouchHelper;
@@ -10,13 +14,15 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ImageView;
 import android.widget.Toast;
 
 import com.hm.tools.scan2clipboard.handler.HistoryAsyncHandler;
 import com.hm.tools.scan2clipboard.utils.Clipboard;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
+
+import static android.content.ContentValues.TAG;
 
 /**
  * Created by hm on 15-5-30.
@@ -27,17 +33,24 @@ public class HistoryFragment extends Fragment
     RecyclerView recyclerView;
     HistoryRecyclerAdapter recyclerAdapter;
     RecyclerView.LayoutManager layoutManager;
-    ArrayList<String> list;
-    ArrayList<Long> rowids;
+    LinkedList<String> list = new LinkedList<>();
+    LinkedList<Long> rowids = new LinkedList<>();
     HistoryAsyncHandler handler;
-    ImageView imageView;
-    int clickCount = 0;
 
-    public HistoryFragment() {
-        super();
-        list = new ArrayList<>();
-        rowids = new ArrayList<>();
-        handler = new HistoryAsyncHandler(getActivity(), this);
+    @Override
+    public void onAttach(Context context) {
+        super.onAttach(context);
+        if (handler == null) {
+            handler = new HistoryAsyncHandler(context, this);
+        }
+    }
+
+    @Override
+    public void onAttach(Activity activity) {
+        super.onAttach(activity);
+        if (handler == null) {
+            handler = new HistoryAsyncHandler(activity, this);
+        }
     }
 
     @Override
@@ -45,41 +58,18 @@ public class HistoryFragment extends Fragment
         View view = inflater.inflate(R.layout.fragment_history, container, false);
         recyclerView = (RecyclerView) view.findViewById(R.id.recyclerView_history);
         layoutManager = new LinearLayoutManager(getActivity());
-
-//        view.setBackgroundColor(getResources().getColor(R.color.material_normal));
-
-        view = inflater.inflate(R.layout.imageview_item, (ViewGroup)view, true);
-        imageView = (ImageView) view.findViewById(R.id.imageView);
-        imageView.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (clickCount == 0) {
-                    clickCount++;
-                    imageView.setImageResource(R.mipmap.ic_done_white_48dp);
-
-                    Toast.makeText(getActivity(), "press again to clear!!!",
-                            Toast.LENGTH_LONG).show();
-                    imageView.postDelayed(new Runnable() {
-                        @Override
-                        public void run() {
-                            imageView.setImageResource(R.mipmap.ic_clear_all_white_48dp);
-                            clickCount = 0;
-                        }
-                    }, 4000);
-                } else if (clickCount == 1) {
-                    clickCount = 0;
-                    imageView.setImageResource(R.mipmap.ic_clear_all_white_48dp);
-                    handler.startDelete(-1);
-                }
-            }
-        });
         return view;
     }
 
     @Override
     public void onViewCreated(View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        handler.startQuery();
+        rowids.add(0L);
+        list.add("左滑复制，右滑删除");
+        if (handler != null) {
+            handler.startQuery();
+        }
+        Log.d("onView", "onView");
     }
 
     private void setRecyclerAdapter() {
@@ -104,16 +94,22 @@ public class HistoryFragment extends Fragment
                 if (i == ItemTouchHelper.LEFT) {
                     String copy = "copy: " + list.get(position);
                     Toast.makeText(getActivity(), copy, Toast.LENGTH_SHORT).show();
-                    Clipboard.setText(getActivity(), list.get(position));
-//                    recyclerAdapter.notifyItemChanged(position);
-                    recyclerAdapter.notifyDataSetChanged();
+                    if (position > 0) {
+                        Clipboard.setText(getActivity(), list.get(position));
+                    }
+                    recyclerAdapter.notifyItemChanged(position);
+//                    recyclerAdapter.notifyDataSetChanged();
                 } else {
                     String delete = "delete: " + list.get(position);
                     Toast.makeText(getActivity(), delete, Toast.LENGTH_SHORT).show();
-                    handler.startDelete(rowids.get(position));
-                    list.remove(position);
-                    rowids.remove(position);
-                    recyclerAdapter.notifyItemRemoved(position);
+                    if (position > 0) {
+                        handler.startDelete(rowids.get(position));
+                        list.remove(position);
+                        rowids.remove(position);
+                        recyclerAdapter.notifyItemRemoved(position);
+                    } else {
+                        recyclerAdapter.notifyItemChanged(0);
+                    }
                 }
             }
         });
@@ -142,6 +138,8 @@ public class HistoryFragment extends Fragment
             //clear action
             rowids.clear();
             list.clear();
+            rowids.add(0L);
+            list.add("左滑复制，右滑删除");
             recyclerAdapter.notifyDataSetChanged();
             Toast.makeText(getActivity(), "Clear all records", Toast.LENGTH_LONG).show();
         }
@@ -153,8 +151,33 @@ public class HistoryFragment extends Fragment
     }
 
     @Override
-    public void onInsertComplete(long id) {
+    public void onInsertComplete(ArrayList<String> results, ArrayList<Long> ids) {
+        list.addAll(1, results);
+        rowids.addAll(1, ids);
+        recyclerAdapter.notifyDataSetChanged();
+        Log.d(TAG, "onInsertComplete: " + ids.size());
+    }
 
+    public void clearHistory() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+        builder.setTitle("清空历史记录");
+        builder.setNegativeButton("取消", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.dismiss();
+            }
+        });
+        builder.setPositiveButton("清空", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                handler.startDelete(-1);
+            }
+        });
+        builder.show();
+    }
+
+    public void insertResults(ArrayList<String> list) {
+        handler.startInsert(list);
     }
 
 }

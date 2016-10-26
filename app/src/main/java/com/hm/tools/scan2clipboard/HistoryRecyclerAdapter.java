@@ -6,15 +6,15 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
-import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Created by hm on 15-6-11.
  */
 public class HistoryRecyclerAdapter extends RecyclerView.Adapter<HistoryRecyclerAdapter.ViewHolder>{
-    ArrayList<String> data;
+    List<String> data;
 
-    public HistoryRecyclerAdapter(ArrayList<String> data) {
+    public HistoryRecyclerAdapter(List<String> data) {
         this.data = data;
     }
 

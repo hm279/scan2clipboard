@@ -14,33 +14,6 @@
         android:layout_alignParentLeft="true"
         android:layout_alignParentStart="true" />
 
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:textAppearance="?android:attr/textAppearanceLarge"
-        android:autoLink="web"
-        android:id="@+id/textView"
-        android:gravity="center"
-        android:background="@android:color/white"
-        android:padding="16dp"
-        android:hint="Touch to scan"
-        android:layout_alignParentTop="true"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentStart="true" />
-
-    <CheckBox
-        android:visibility="invisible"
-        android:id="@+id/check_notification"
-        android:text="@string/check_notification"
-        android:textColor="@color/secondary_text_default_material_light"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@android:color/white"
-        android:padding="16dp"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentStart="true"
-        android:layout_above="@+id/setting" />
-
     <ImageButton
         android:layout_width="56dp"
         android:layout_height="56dp"
@@ -51,68 +24,7 @@
         android:tint="@android:color/white"
         android:padding="8dp"
         android:layout_alignParentBottom="true"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentStart="true"
-        android:layout_marginLeft="24dp"
-        android:layout_marginStart="24dp"
-        android:layout_marginBottom="24dp"
-        />
-
-    <ImageButton
-        android:visibility="invisible"
-        android:layout_width="56dp"
-        android:layout_height="56dp"
-        android:scaleType="fitCenter"
-        android:id="@+id/setting"
-        android:src="@mipmap/ic_settings_white_48dp"
-        android:background="@android:color/transparent"
-        android:padding="8dp"
-        android:layout_above="@+id/history"
-        android:layout_alignLeft="@+id/history"
-        android:layout_alignStart="@+id/history"
-        android:layout_marginBottom="16dp" />
-
-    <ImageButton
-        android:layout_width="56dp"
-        android:layout_height="56dp"
-        android:scaleType="fitCenter"
-        android:id="@+id/expand"
-        android:src="@mipmap/ic_expand_less_white_48dp"
-        android:background="@android:color/transparent"
-        android:layout_alignParentBottom="true"
-        android:layout_alignParentRight="true"
-        android:layout_alignParentEnd="true"
-        android:layout_marginRight="24dp"
-        android:layout_marginEnd="24dp"
-        android:layout_marginBottom="24dp"
-        />
-
-    <ImageButton
-        android:visibility="invisible"
-        android:layout_width="56dp"
-        android:layout_height="56dp"
-        android:scaleType="fitCenter"
-        android:id="@+id/history"
-        android:src="@mipmap/ic_history_white_48dp"
-        android:background="@android:color/transparent"
-        android:padding="8dp"
-        android:layout_above="@+id/add_file"
-        android:layout_alignLeft="@+id/add_file"
-        android:layout_alignStart="@+id/add_file"
-        android:layout_marginBottom="16dp" />
-
-    <ImageButton
-        android:visibility="invisible"
-        android:layout_width="56dp"
-        android:layout_height="56dp"
-        android:scaleType="fitCenter"
-        android:id="@+id/add_file"
-        android:src="@mipmap/ic_attachment_white_48dp"
-        android:background="@android:color/transparent"
-        android:padding="8dp"
-        android:layout_above="@+id/expand"
-        android:layout_alignLeft="@+id/expand"
-        android:layout_alignStart="@+id/expand"
-        android:layout_marginBottom="16dp" />
+        android:layout_centerHorizontal="true"
+        android:layout_marginBottom="32dp" />
 
 </RelativeLayout>

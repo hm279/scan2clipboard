@@ -33,13 +33,14 @@ public class HistoryAsyncHandler extends Handler {
         long rowid;
         String text;
         ArrayList<String> results;
+        ArrayList<Long> rowids;
     }
 
     public HistoryAsyncHandler(Context context, HistoryCompleteListener listener) {
         super();
         helper = HistorySQLiteHelper.getInstance(context);
         weakReference = new WeakReference<>(listener);
-        synchronized (HistoryAsyncHandler.class) {
+        synchronized (this) {
             if (sLooper == null) {
                 HandlerThread thread = new HandlerThread("HistoryAsyncQueryWorker");
                 thread.start();
@@ -64,8 +65,7 @@ public class HistoryAsyncHandler extends Handler {
                     args.cursor = helper.query();
                     break;
                 case EVENT_MY_INSERT:
-                    ArrayList<Long> ids = helper.insert(args.results);
-                    args.rowid = ids.get(0);
+                    args.rowids = helper.insert(args.results);
                     break;
                 case EVENT_MY_UPDATE:
                     args.rowid = helper.update(args.rowid, args.text);
@@ -95,7 +95,7 @@ public class HistoryAsyncHandler extends Handler {
                 listener.onQueryComplete(args.cursor);
                 break;
             case EVENT_MY_INSERT:
-                listener.onInsertComplete(args.rowid);
+                listener.onInsertComplete(args.results, args.rowids);
                 break;
             case EVENT_MY_UPDATE:
                 listener.onUpdateComplete(args.rowid);
@@ -147,7 +147,7 @@ public class HistoryAsyncHandler extends Handler {
 
     public interface HistoryCompleteListener {
         void onQueryComplete(Cursor cursor);
-        void onInsertComplete(long id);
+        void onInsertComplete(ArrayList<String> results, ArrayList<Long> ids);
         void onUpdateComplete(long id);
         void onDeleteComplete(int count);
     }

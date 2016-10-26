@@ -2,7 +2,10 @@
     <string name="app_name">Scan2Clipboard</string>
 
     <string name="hello_world">Hello world!</string>
-    <string name="action_settings">Settings</string>
+    <string name="action_settings">设置</string>
     <string name="check_notification">set shortcut to scan in notification</string>
     <string name="check_reverse">reverse image color to decode</string>
+    <string name="title_activity_main">二维码</string>
+    <string name="decode_image">本地扫码</string>
+    <string name="clear_history">清空历史记录</string>
 </resources>

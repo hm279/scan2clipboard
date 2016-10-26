@@ -15,13 +15,26 @@ import java.util.ArrayList;
  * Created by hm on 15-6-6.
  */
 public class Decoder {
+
+    static {
+        System.loadLibrary("iconv");
+    }
+
+    private static class Holder {
+        private static Decoder holder = new Decoder();
+    }
+
+    public static Decoder getDefaultDecoder() {
+        return Holder.holder;
+    }
+
     public static final int ERROR_NO_BITMAP = -2;
     public static final int ERROR_NO_RESULT = -1;
     public static final int ERROR_NO_ERROR = 0;
 
     private ImageScanner scanner;
 
-    public Decoder() {
+    private Decoder() {
         scanner = new ImageScanner();
         scanner.setConfig(0, Config.X_DENSITY, 3);
         scanner.setConfig(0, Config.Y_DENSITY, 3);
