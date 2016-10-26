@@ -3,8 +3,6 @@ package com.hm.tools.scan2clipboard;
 import android.app.Fragment;
 import android.app.FragmentManager;
 import android.content.Intent;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
@@ -21,9 +19,6 @@ import com.hm.tools.scan2clipboard.handler.AsyncDecodeHandler;
 import com.hm.tools.scan2clipboard.utils.Clipboard;
 import com.hm.tools.scan2clipboard.utils.Decoder;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity
@@ -111,23 +106,7 @@ public class MainActivity extends AppCompatActivity
                 case PICK_IMAGE:
                     if (data.getData() != null) {
                         Log.d("TAG", "onActivityResult: " + data.toString());
-                        InputStream in = null;
-                        try {
-                            in = getContentResolver().openInputStream(data.getData());
-                            Bitmap bitmap = BitmapFactory.decodeStream(in);
-                            if (bitmap != null) {
-                                ArrayList<String> result = Decoder.getDefaultDecoder().decode(bitmap);
-                                setResult(result);
-                            }
-                        } catch (FileNotFoundException e) {
-                        } finally {
-                            try {
-                                if (in != null) {
-                                    in.close();
-                                }
-                            } catch (IOException e) {
-                            }
-                        }
+                        handleIntentSingleImg(data.getData());
                     }
                     break;
                 case SCAN:
@@ -163,20 +142,24 @@ public class MainActivity extends AppCompatActivity
 
     private void handleIntentSingleImg(Intent intent) {
         Uri imgUri = intent.getParcelableExtra(Intent.EXTRA_STREAM);
-        if (imgUri != null) {
+        handleIntentSingleImg(imgUri);
+    }
+
+    private void handleIntentSingleImg(Uri uri) {
+        if (uri != null) {
             single = true;
-            AsyncDecodeHandler handler = new AsyncDecodeHandler(this, Decoder.getDefaultDecoder(), this);
-            handler.decodeBitmap(imgUri);
+            AsyncDecodeHandler handler =
+                    new AsyncDecodeHandler(this, Decoder.getDefaultDecoder(), this);
+            handler.decodeBitmap(uri);
         }
     }
 
     private void singleDecodeComplete(ArrayList<String> result, int error) {
         if (error == Decoder.ERROR_NO_RESULT) {
-            Toast.makeText(this, "no code", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "没有结果", Toast.LENGTH_LONG).show();
         } else if (error == Decoder.ERROR_NO_ERROR){
             //in the async thread the result had been recorded.
             setResult(result);
-            Toast.makeText(this, "has code, showing in top", Toast.LENGTH_LONG).show();
         } else if (error == Decoder.ERROR_NO_BITMAP){
             Toast.makeText(this, "input data not found", Toast.LENGTH_LONG).show();
         }

@@ -9,7 +9,6 @@ import android.os.Looper;
 import android.os.Message;
 import android.provider.MediaStore;
 
-import com.hm.tools.scan2clipboard.HistorySQLiteHelper;
 import com.hm.tools.scan2clipboard.utils.Decoder;
 
 import java.io.IOException;
@@ -24,7 +23,6 @@ public class AsyncDecodeHandler extends Handler{
 
     private static Looper sLooper = null;
     private WorkerHandler mWorkerHandler;
-    private HistorySQLiteHelper helper;
     private WeakReference<DecodeCompleteListener> listenerWeakReference;
     private Decoder decoder;
     private Context context;
@@ -40,7 +38,6 @@ public class AsyncDecodeHandler extends Handler{
         super();
         this.context = context.getApplicationContext();
         this.decoder = decoder;
-        this.helper = HistorySQLiteHelper.getInstance(context);
         listenerWeakReference = new WeakReference<>(listener);
         synchronized (this) {
             if (sLooper == null) {
@@ -68,7 +65,6 @@ public class AsyncDecodeHandler extends Handler{
                                 context.getContentResolver(), args.uri);
                         args.result = decoder.decode(bitmap);
                         if (args.result != null) {
-                            helper.insert(args.result);
                             args.error = Decoder.ERROR_NO_ERROR;
                         } else {
                             args.error = Decoder.ERROR_NO_RESULT;
